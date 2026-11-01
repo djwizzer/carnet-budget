@@ -107,6 +107,8 @@ footer{display:flex;flex-direction:column;gap:8px;font-size:.82rem;color:var(--m
     <div><span class="lbl">Reste</span><span class="v" id="sBal"></span></div>
   </div>
 
+  <div id="internalNote" class="muted" style="font-size:.82rem;margin-top:-8px" hidden></div>
+
   <section>
     <h2>Où part ton argent</h2>
     <div class="split">
@@ -136,20 +138,25 @@ footer{display:flex;flex-direction:column;gap:8px;font-size:.82rem;color:var(--m
 const CATS = {
   "Courses":"#3E9B5F","Restaurants":"#E07A3F","Transport":"#3B7DD8","Logement":"#8E5BC9",
   "Factures":"#C9A227","Abonnements":"#D9487D","Shopping":"#2BA3A8","Santé":"#D2503C",
-  "Loisirs":"#6E7FE0","Retraits":"#8A8F74","Virements":"#7C8C96","Autre":"#9AA39E","Revenus":"#13915F"
+  "Loisirs":"#6E7FE0","Tabac":"#A86B3C","Frais bancaires":"#B5475E","Retraits":"#8A8F74",
+  "Virements":"#7C8C96","Autre":"#9AA39E","Revenus":"#13915F","Virements internes":"#5B7F99"
 };
+const INTERNAL = "Virements internes";
+const INTERNAL_RE = /LIVRET|EPARGNE|[EÉ]PARGNE|VIREMENT DEPUIS|VIREMENT VERS|\bLDDS?\b|\bLEP\b|\bPEL\b|\bCEL\b|ASSURANCE.?VIE|COMPTE A TERME/;
 const RULES = [
+  ["Frais bancaires",/^\*?FRAIS|INTERETS DEBITEURS|AGIOS|COTISATION (CARTE|OFFRE)|COMMISSION/],
+  ["Tabac",/TABAC|\bPMU\b|\bFDJ\b|FRANCAISE DES JEUX/],
   ["Retraits",/\bRETRAIT|\bDAB\b|\bRET DAB/],
   ["Factures",/\bEDF\b|ENGIE|TOTALENERGIES|VEOLIA|SUEZ|ORANGE|\bSFR\b|BOUYGUES|\bFREE\b|FREE MOBILE|SOSH|RED BY|IMPOT|DGFIP|TRESOR PUBLIC|ASSURANCE|MAIF|MACIF|\bAXA\b|MATMUT|\bGMF\b|MUTUELLE|ALLIANZ|GROUPAMA/],
   ["Logement",/LOYER|FONCIA|NEXITY|HABITAT|BAILLEUR|SYNDIC|\bOPH\b|\bCDC\b/],
   ["Abonnements",/NETFLIX|SPOTIFY|DEEZER|DISNEY|CANAL\+?|PRIME VIDEO|AMAZON PRIME|APPLE\.COM|ITUNES|YOUTUBE|GOOGLE ?(ONE|PLAY|STORAGE)|ABONNEMENT|BASIC.?FIT|FITNESS|OVH|CLAUDE|OPENAI|ANTHROPIC|ICLOUD/],
-  ["Loisirs",/STEAM|PLAYSTATION|\bPSN\b|XBOX|NINTENDO|INSTANT.?GAMING|CINEMA|\bCINE|PATHE|\bUGC\b|GAUMONT|TICKETMASTER|FNAC SPECT|BOWLING|LASER|CONCERT/],
-  ["Shopping",/AMAZON|AMZN|\bFNAC\b|DARTY|\bBOULANGER\b|CDISCOUNT|DECATHLON|IKEA|LEROY|CASTORAMA|\bZARA\b|H ?& ?M|KIABI|PRIMARK|\bACTION\b|ALIEXPRESS|SHEIN|TEMU|VINTED|LEBONCOIN|LDLC|MATERIEL\.NET/],
+  ["Loisirs",/STEAM|PLAYSTATION|\bPSN\b|XBOX|NINTENDO|INSTANT.?GAMING|CINEMA|\bCINE|PATHE|\bUGC\b|GAUMONT|TICKETMASTER|FNAC SPECT|BOWLING|LASER|CONCERT|GAMES|SUPERCELL|ANKAMA|BLIZZARD|RIOT|TWITCH|EPIC ?GAMES/],
+  ["Shopping",/AMAZON|AMZN|\bFNAC\b|DARTY|\bBOULANGER\b|CDISCOUNT|DECATHLON|IKEA|LEROY|CASTORAMA|\bZARA\b|H ?& ?M|KIABI|PRIMARK|\bACTION\b|ALIEXPRESS|SHEIN|TEMU|VINTED|LEBONCOIN|LDLC|MATERIEL\.NET|PAYPAL ?\*|PRLV SEPA PAYPAL/],
   ["Courses",/CARREFOUR|LECLERC|AUCHAN|\bLIDL\b|\bALDI\b|INTERMARCHE|MONOPRIX|FRANPRIX|CASINO|SUPER ?U\b|HYPER ?U\b|U EXPRESS|PICARD|NETTO|GRAND FRAIS|BIOCOOP|\bSPAR\b|LECLERC|COCCINELLE|PROXI|VIVAL/],
-  ["Restaurants",/MC ?DO|MCDONALD|BURGER|\bKFC\b|UBER ?EATS|DELIVEROO|JUST ?EAT|RESTAU|BOULANG|\bCAFE|STARBUCKS|PIZZ|SUSHI|BRASSERIE|TACOS|KEBAB|SUBWAY|DOMINO/],
-  ["Transport",/\bSNCF|\bRATP|\bTOTAL\b|ESSO|SHELL|\bBP\b|\bAVIA\b|\bUBER\b|\bBOLT\b|BLABLACAR|PEAGE|VINCI|SANEF|APRR|PARKING|INDIGO|TISSEO|NAVIGO|TCL\b|CARBU|STATION|\bTER\b|OUIGO|TRAINLINE/],
-  ["Santé",/PHARMA|DOCTOLIB|MEDECIN|\bDR\b|DENTISTE|LABO|OPTIC|HOPITAL|CLINIQUE|KINE/],
-  ["Virements",/\bVIR\b|VIREMENT|LYDIA|PAYLIB|\bWERO\b|PAYPAL/]
+  ["Restaurants",/MC ?DO|MCDONALD|BURGER|\bKFC\b|UBER ?EATS|DELIVEROO|JUST ?EAT|RESTAU|BOULANG|\bCAFE|STARBUCKS|PIZZ|SUSHI|BRASSERIE|TACOS|KEBAB|SUBWAY|DOMINO|QUICK|MIE CALINE|BRIOCHE DOREE|\bPAUL\b|TGTG|TOO ?GOOD|BUFFALO|HIPPOPOTAMUS|COURTEPAILLE|AU BUREAU|SALOON|CREPERIE|TICKET ?REST|BISTRO|O'TACOS|FIVE GUYS/],
+  ["Transport",/\bSNCF|\bRATP|\bTOTAL\b|ESSO|SHELL|\bBP\b|\bAVIA\b|\bUBER\b|\bBOLT\b|BLABLACAR|PEAGE|AUTOROUTE|VINCI|SANEF|APRR|PARKING|INDIGO|TISSEO|NAVIGO|TCL\b|CARBU|STATION|\bTER\b|OUIGO|TRAINLINE/],
+  ["Santé",/PHARMA|DOCTOLIB|MEDECIN|\bDR\b|DENTISTE|LABO|OPTIC|OPTIQUE|LUNETTE|HOPITAL|CLINIQUE|KINE/],
+  ["Virements",/\bVIR\b|VIREMENT|LYDIA|PAYLIB|\bWERO\b|PAYPAL|TDF EMIS/]
 ];
 const CREDIT_RE = /VIR(EMENT)?\s+(SEPA\s+)?(RECU|DE |EN VOTRE FAVEUR)|SALAIRE|\bPAIE\b|REMISE|REMBOURS|AVOIR|\bCAF\b|INTERETS|DEPOT|FRANCE TRAVAIL|POLE EMPLOI|PRIME D'ACTIVITE/;
 
@@ -182,15 +189,16 @@ function load(){
 function save(){ try{ localStorage.setItem("budget.v1", JSON.stringify(state)); }catch(e){} }
 
 function keyOf(label){
-  return label.toUpperCase().replace(/\b(CB|CARTE|PRLV|SEPA|PAIEMENT|ACHAT|FACT(URE)?|X\d+|VIR|VIREMENT)\b/g," ")
+  return label.toUpperCase().replace(/\b(CB|CARTE|PRLV|SEPA|PAIEMENT|ACHAT|FACT(URE)?|X\d+|VIR|VIREMENT|INST|M|MME|MR)\b/g," ")
     .replace(/[0-9\/.*:,-]+/g," ").replace(/\s+/g," ").trim().split(" ").slice(0,2).join(" ");
 }
 function catOf(t){
   if(t.cat) return t.cat;
   const k = keyOf(t.label);
   if(k && state.learned[k]) return state.learned[k];
-  if(t.amount > 0) return "Revenus";
   const L = t.label.toUpperCase();
+  if(INTERNAL_RE.test(L)) return INTERNAL;
+  if(t.amount > 0) return "Revenus";
   for(const [c,re] of RULES) if(re.test(L)) return c;
   return "Autre";
 }
@@ -205,15 +213,19 @@ function render(){
     const [y,mm]=m.split("-"); return `<button class="chip" aria-pressed="${m===month}" data-m="${m}">${MOIS[+mm-1]} ${y}</button>`;
   }).join("");
   const tx = state.tx.filter(t=>t.date.startsWith(month||"")).sort((a,b)=>b.date.localeCompare(a.date));
-  const inc = tx.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
-  const out = -tx.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0);
+  const real = tx.filter(t=>catOf(t)!==INTERNAL), internal = tx.filter(t=>catOf(t)===INTERNAL);
+  const inc = real.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const out = -real.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0);
+  const iIn = internal.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0), iOut = -internal.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0);
+  const ie = document.getElementById("internalNote"); ie.hidden = !internal.length;
+  ie.innerHTML = `Virements internes (épargne, entre tes comptes), non comptés ci-dessus : <span class="num">+${fmt(iIn)}</span> reçus, <span class="num">−${fmt(iOut)}</span> envoyés.`;
   document.getElementById("sIn").textContent = fmt(inc);
   document.getElementById("sOut").textContent = fmt(out);
   const bal = document.getElementById("sBal"); bal.textContent = fmt(inc-out); bal.className = "v " + (inc-out>=0?"pos":"neg");
 
   // per-category spend
   const by = {};
-  tx.filter(t=>t.amount<0).forEach(t=>{ const c=catOf(t); by[c]=(by[c]||0)-t.amount; });
+  real.filter(t=>t.amount<0).forEach(t=>{ const c=catOf(t); by[c]=(by[c]||0)-t.amount; });
   Object.keys(state.budgets).forEach(c=>{ if(!(c in by)) by[c]=0; });
   const list = Object.entries(by).sort((a,b)=>b[1]-a[1]);
   drawDonut(list.filter(([,v])=>v>0), out);
@@ -282,85 +294,115 @@ document.addEventListener("change", e=>{
 
 /* ---------- PDF import ---------- */
 function status(msg){ const el=document.getElementById("status"); el.hidden=!msg; el.innerHTML=msg||""; }
-const AMT = /^([+\-−])?\s?((?:\d{1,3}(?:[   .]\d{3})+|\d+),\d{2})\s?(?:€|EUR)?\s?([+\-−])?$/;
-const AMT_TAIL = /([+\-−])?\s?((?:\d{1,3}(?:[   .]\d{3})+|\d+),\d{2})\s?(?:€|EUR)?\s?$/;
+const NUM = "(?:\\d{1,3}(?:[ \\u00a0\\u202f.]\\d{3})+|\\d+),\\d{2}";
+const AMT = new RegExp("^([+\\-−])?\\s?(" + NUM + ")\\s?(?:€|EUR|¤)?\\s?([+\\-−])?$");
+const AMT_TAIL = new RegExp("([+\\-−])?\\s?(" + NUM + ")\\s?(?:€|EUR|¤)?\\s?$");
 const DATE = /^(\d{2})[\/.\-](\d{2})(?:[\/.\-](\d{4}|\d{2}))?(?!\d)/;
+const FULLDATE = /^\d{2}[\/.\-]\d{2}[\/.\-](\d{4}|\d{2})$/;
+const STOP = /NOUVEAU SOLDE|ANCIEN SOLDE|SOLDE (AU|CR[EÉ]DITEUR|D[EÉ]BITEUR|EN |FINAL|PR[EÉ]C[EÉ]DENT)|TOTAL DES|MONTANT FRAIS|^TOTAL\b/i;
 const toNum = s => parseFloat(s.replace(/[   .]/g,"").replace(",","."));
+
+/* Regroupe les morceaux de texte d'une page en lignes, puis en "tokens" (morceaux proches fusionnés). */
+function toRows(items){
+  const rows=[];
+  items.forEach(it=>{ const s=(it.str||"").trim(); if(!s) return;
+    let r=rows.find(r=>Math.abs(r.y-it.y)<2.5); if(!r){ r={y:it.y,raw:[]}; rows.push(r); }
+    r.raw.push({s, x:it.x, x2:it.x+(it.width||0)}); });
+  rows.sort((a,b)=>b.y-a.y);
+  rows.forEach(r=>{
+    r.raw.sort((a,b)=>a.x-b.x); r.tok=[];
+    r.raw.forEach(p=>{ const t=r.tok[r.tok.length-1];
+      if(t && p.x - t.x2 < 3.5){ t.s += (p.x - t.x2 > 0.6 ? " " : "") + p.s; t.x2=Math.max(t.x2,p.x2); }
+      else r.tok.push({...p}); });
+    r.tok.forEach(t=>t.cx=(t.x+t.x2)/2);
+    r.text=r.tok.map(t=>t.s).join(" ").replace(/\s+/g," ").trim();
+  });
+  return rows;
+}
+
+function cleanLabel(l){
+  return l.replace(/^CARTE\s+\d{2}\/\d{2}(\/\d{2,4})?\s+/i,"")
+    .replace(/\s*\bCB\s?\*\s?\d{4}\b/gi,"").replace(/\bX{2,}\d{2,4}\b/g,"")
+    .replace(/\s+\d$/,"").replace(/\s+/g," ").trim();
+}
+
+function parseStatement(pages){
+  const fullText = pages.map(rs=>rs.map(r=>r.text).join("\n")).join("\n");
+  const period = fullText.match(/au\s+(\d{2})[\/.](\d{2})[\/.](20\d{2})/i);
+  const fulls=[...fullText.matchAll(/\b(\d{2})[\/.](\d{2})[\/.](20\d{2})\b/g)];
+  const endM = period ? {m:+period[2], y:+period[3]} : fulls.length ? {m:+fulls[fulls.length-1][2], y:+fulls[fulls.length-1][3]} : {m:new Date().getMonth()+1, y:new Date().getFullYear()};
+  const isHeader = r => /\bd.bit\b/i.test(r.text) && /\bcr.dit\b/i.test(r.text);
+  const strict = pages.some(rs=>rs.some(isHeader));
+  const out=[]; let cols=null;
+  for(const rows of pages){
+    let inTable = !strict;
+    for(const r of rows){
+      if(isHeader(r)){
+        const f=re=>{const t=r.tok.find(t=>re.test(t.s)); return t?t.cx:null;};
+        cols={deb:f(/\bd.bit\b/i), cred:f(/\bcr.dit\b/i)}; inTable=true; continue;
+      }
+      if(!inTable) continue;
+      if(STOP.test(r.text)){ if(/NOUVEAU|TOTAL|FRAIS/i.test(r.text) && strict) inTable=false; continue; }
+      const first=r.tok[0]; const dm = first && first.s.match(DATE);
+      if(!dm) continue;
+      if(!strict && /\bdu\b.*\bau\b/i.test(r.text)) continue;
+      const toks = r.tok.slice(1);
+      const rest = first.s.slice(dm[0].length).trim();
+      if(rest) toks.unshift({...first, s:rest});
+      let amtIdx = -1;
+      for(let i=toks.length-1;i>=0;i--) if(AMT.test(toks[i].s)){ amtIdx=i; break; }
+      let val, sign=0, amtTok=null;
+      if(amtIdx>=0){
+        const cands = toks.filter(t=>AMT.test(t.s));
+        if(strict && cols && cols.deb!=null && cols.cred!=null){
+          const mid=(cols.deb+cols.cred)/2, lo=Math.min(cols.deb,cols.cred)-80;
+          amtTok = cands.find(t=>t.cx>lo) || cands[cands.length-1];
+          sign = (amtTok.cx > mid) === (cols.cred > cols.deb) ? 1 : -1;
+        } else amtTok = cands[cands.length-1];
+        const m=amtTok.s.match(AMT); val=toNum(m[2]);
+        if(m[1]||m[3]) sign = /[\-−]/.test(m[1]||m[3]) ? -1 : 1;
+      } else {
+        const lastTok=toks[toks.length-1]; const m=lastTok && lastTok.s.match(AMT_TAIL); if(!m) continue;
+        val=toNum(m[2]); if(m[1]) sign=/[\-−]/.test(m[1])?-1:1;
+        lastTok.s = lastTok.s.slice(0, lastTok.s.length-m[0].length).trim();
+      }
+      let label = toks.filter(t=>t!==amtTok && !AMT.test(t.s) && !FULLDATE.test(t.s)).map(t=>t.s).join(" ");
+      label = cleanLabel(label.replace(/\s\d{2}[\/.]\d{2}[\/.]\d{2,4}$/,""));
+      if(!label || !val) continue;
+      if(!sign) sign = CREDIT_RE.test(label.toUpperCase()) ? 1 : -1;
+      const d=+dm[1], mo=+dm[2]; if(mo<1||mo>12||d<1||d>31) continue;
+      const y = dm[3] ? (dm[3].length===2 ? 2000+ +dm[3] : +dm[3]) : (mo > endM.m ? endM.y-1 : endM.y);
+      out.push({id:"t"+Date.now().toString(36)+out.length, date:`${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`, label, amount:Math.round(sign*val*100)/100});
+    }
+  }
+  return out;
+}
 
 async function importPdf(file){
   if(!window.pdfjsLib){ status("Le lecteur PDF n'a pas pu se charger. Vérifie ta connexion puis réessaie."); return; }
   status("Lecture du relevé…");
   try{
     const doc = await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
-    const lines = []; let fullText = "";
+    const pages = [];
     for(let p=1;p<=doc.numPages;p++){
       const tc = await (await doc.getPage(p)).getTextContent();
-      const rows = [];
-      tc.items.forEach(it=>{ if(!it.str || !it.str.trim()) return;
-        const y=it.transform[5], x=it.transform[4];
-        let r=rows.find(r=>Math.abs(r.y-y)<3); if(!r){ r={y,items:[]}; rows.push(r); }
-        r.items.push({s:it.str.trim(), x, cx:x+(it.width||0)/2, x2:x+(it.width||0)}); });
-      rows.sort((a,b)=>b.y-a.y).forEach(r=>{ r.items.sort((a,b)=>a.x-b.x); r.text=r.items.map(i=>i.s).join(" ").replace(/\s+/g," ").trim(); lines.push(r); fullText+=r.text+"\n"; });
+      pages.push(toRows(tc.items.map(it=>({str:it.str, x:it.transform[4], y:it.transform[5], width:it.width}))));
     }
-    if(fullText.trim().length < 20){ status("Ce PDF ne contient pas de texte lisible (c'est probablement un scan). Télécharge le relevé directement depuis l'appli ou le site de ta banque."); return; }
-    const found = parseLines(lines, fullText);
+    if(pages.flat().map(r=>r.text).join("").length < 20){ status("Ce PDF ne contient pas de texte lisible (c'est probablement un scan). Télécharge le relevé directement depuis l'appli ou le site de ta banque."); return; }
+    const found = parseStatement(pages);
     if(!found.length){ status("Je n'ai trouvé aucune opération dans ce PDF. Le format de ta banque n'est peut-être pas reconnu."); return; }
-    const keys = new Set(state.tx.filter(t=>!state.sample).map(t=>t.date+"|"+t.amount.toFixed(2)+"|"+t.label.slice(0,18)));
-    const fresh = found.filter(t=>!keys.has(t.date+"|"+t.amount.toFixed(2)+"|"+t.label.slice(0,18)));
+    const sig = t => t.date+"|"+t.amount.toFixed(2)+"|"+t.label.slice(0,18);
+    const counts = {}; state.tx.filter(()=>!state.sample).forEach(t=>{ counts[sig(t)]=(counts[sig(t)]||0)+1; });
+    const fresh = found.filter(t=>{ const k=sig(t); if(counts[k]){ counts[k]--; return false; } return true; });
     pending = fresh; status("");
     const inc=fresh.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0), out=-fresh.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0);
     const rv=document.getElementById("review"); rv.hidden=false;
     rv.innerHTML = `<h2>${found.length} opérations trouvées</h2>
-      <div class="muted" style="font-size:.88rem">${fresh.length} nouvelles${found.length-fresh.length?`, ${found.length-fresh.length} déjà présentes`:""} · <span class="pos">+${fmt(inc)}</span> · <span class="neg">−${fmt(out)}</span></div>
+      <div class="muted" style="font-size:.88rem">${fresh.length} nouvelles${found.length-fresh.length?`, ${found.length-fresh.length} déjà importées`:""} · <span class="pos">+${fmt(inc)}</span> · <span class="neg">−${fmt(out)}</span></div>
       <ul>${fresh.slice(0,5).map(t=>`<li><span class="num">${t.date.slice(8)}/${t.date.slice(5,7)}</span> ${esc(t.label)} <b class="num">${fmt(t.amount)}</b></li>`).join("")}${fresh.length>5?`<li class="muted">… et ${fresh.length-5} autres</li>`:""}</ul>
       <div class="row"><button class="btn-primary" id="addYes" ${fresh.length?"":"disabled"}>Ajouter à mon budget</button><button id="addNo">Annuler</button></div>`;
     rv.scrollIntoView({behavior:"smooth",block:"start"});
   }catch(err){ status("Impossible de lire ce fichier : "+esc(err.message||err)+". Vérifie que c'est bien un PDF non protégé par mot de passe."); }
-}
-
-function parseLines(lines, fullText){
-  // Year of the statement: last full date found in the document
-  const fulls=[...fullText.matchAll(/\b(\d{2})[\/.](\d{2})[\/.](20\d{2})\b/g)];
-  const end = fulls.length ? {m:+fulls[fulls.length-1][2], y:+fulls[fulls.length-1][3]} : {m:new Date().getMonth()+1, y:new Date().getFullYear()};
-  let cols = null; const out=[]; let last=null, cont=0;
-  for(const r of lines){
-    const T=r.text;
-    if(/d[ée]bit/i.test(T) && /cr[ée]dit/i.test(T)){
-      const f=re=>{const i=r.items.find(i=>re.test(i.s)); return i?i.cx:null;};
-      cols={deb:f(/d[ée]bit/i), cred:f(/cr[ée]dit/i), solde:f(/solde/i)}; continue;
-    }
-    const dm = T.match(DATE);
-    if(!dm){
-      if(last && cont<1 && T.length<60 && !AMT_TAIL.test(T) && !/solde|total|page|report|suite/i.test(T)){ last.label+=" "+T; cont++; }
-      continue;
-    }
-    if(/SOLDE|TOTAL DES|ANCIEN|NOUVEAU|REPORT/i.test(T)) { last=null; continue; }
-    let amts = r.items.filter(i=>AMT.test(i.s));
-    let amtItem=null, sign=0, val=null;
-    if(amts.length){
-      if(cols && (cols.deb||cols.cred)){
-        const near = i=>{ const d={deb:cols.deb!=null?Math.abs(i.cx-cols.deb):1e9, cred:cols.cred!=null?Math.abs(i.cx-cols.cred):1e9, solde:cols.solde!=null?Math.abs(i.cx-cols.solde):1e9};
-          return Object.entries(d).sort((a,b)=>a[1]-b[1])[0][0]; };
-        const pick = amts.find(i=>near(i)!=="solde") || amts[0];
-        amtItem=pick; const n=near(pick); sign = n==="cred"?1:n==="deb"?-1:0;
-      } else amtItem=amts[0];
-      const m=amtItem.s.match(AMT); val=toNum(m[2]);
-      if(m[1]||m[3]) sign = /[\-−]/.test(m[1]||m[3]) ? -1 : 1;
-    } else {
-      const m=T.match(AMT_TAIL); if(!m) { last=null; continue; }
-      val=toNum(m[2]); if(m[1]) sign=/[\-−]/.test(m[1])?-1:1;
-    }
-    let label = r.items.filter(i=>i!==amtItem && !AMT.test(i.s)).map(i=>i.s).join(" ");
-    if(!amtItem) label = label.replace(AMT_TAIL,"");
-    label = label.replace(DATE,"").trim().replace(DATE,"").replace(/\s+/g," ").trim();
-    if(!label || !val) { last=null; continue; }
-    if(!sign) sign = CREDIT_RE.test(label.toUpperCase()) ? 1 : -1;
-    const d=+dm[1], mo=+dm[2]; if(mo<1||mo>12||d<1||d>31){ last=null; continue; }
-    let y = dm[3] ? (dm[3].length===2 ? 2000+ +dm[3] : +dm[3]) : (mo > end.m ? end.y-1 : end.y);
-    last = {id:"t"+Date.now().toString(36)+out.length, date:`${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`, label, amount:Math.round(sign*val*100)/100};
-    out.push(last); cont=0;
-  }
-  return out;
 }
 
 function commitImport(){
